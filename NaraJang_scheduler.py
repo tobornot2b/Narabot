@@ -43,7 +43,6 @@ inqrybidNtceNm = '&bidNtceNm=교복'  # 입찰공고명
 sys.path.append('/settings')
 import config
 serviceKey = config.API_Keys['data_go_kr_Key']
-print(serviceKey)
 
 # 입찰공고 URL
 url_assemble1 = (
@@ -282,7 +281,7 @@ if __name__ == '__main__':
     sched.add_job(
         send_list,
         'interval',
-        hours=1,
+        hours=3,
         start_date=f'{today}',
         end_date=f'{today[:10]} 18:00:00'
     )
