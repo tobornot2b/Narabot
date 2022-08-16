@@ -9,6 +9,7 @@ from apscheduler.schedulers.blocking import BlockingScheduler
 
 
 # 요청url 잘게 자르기
+# url1 = 'http://apis.data.go.kr/1230000/BidPublicInfoService03'  # 현재 입찰조회는 03번으로 변경됨. 하지만 02도 작동중.
 url1 = 'http://apis.data.go.kr/1230000/BidPublicInfoService02'  # 입찰조회
 url2 = 'http://apis.data.go.kr/1230000/ScsbidInfoService'  # 낙찰조회
 
@@ -92,7 +93,7 @@ token = config.TELEGRAM_API_Keys['token']
 bot = telegram.Bot(token)
 t_id = config.TELEGRAM_API_Keys['telegram_id']  # 채널
 
-info_message = '''1시간 주기로 데이터를 가져옵니다.
+info_message = '''3시간 주기로 데이터를 가져옵니다.
 입찰명 검색어는 "교복" 으로 설정되어 있습니다. '''
 
 # 오늘 날짜
