@@ -1,42 +1,21 @@
 import requests
 import pandas as pd
 import telegram
-from telegram.ext import Updater # 명령어 감지
-from telegram.ext import MessageHandler, Filters  # 명령어 감지
 from datetime import datetime
 import sys
 from tabulate import tabulate # 표 프린트
-
-# 시간 마다 알람 지정용
-from apscheduler.schedulers.blocking import BlockingScheduler
-
+from apscheduler.schedulers.blocking import BlockingScheduler # 시간 마다 알람 지정용
 
 # 키 가져오기
 sys.path.append('/settings')
 import config
 serviceKey = config.API_Keys['data_go_kr_Key']
 
-
-# 텔레그램 봇 생성
-token = config.TELEGRAM_API_Keys['token']
-bot = telegram.Bot(token)
-t_id = config.TELEGRAM_API_Keys['telegram_id']  # 채널
-interv_num = 30 # 시간 or 분 인터벌
-words = ['교복', '학생복', '생활복', '동복', '하복'] # 검색어 (검색어 조정 시 여기를 수정할 것)
-
-info_message = f'''{interv_num}분 주기로 데이터를 가져옵니다.\n
-입찰명 검색어는 {words} 으로 설정되어 있습니다.\n
-"/명령어"를 입력해서 기능을 확인하세요.'''
-
-
-# 오늘 날짜
-today = datetime.today().strftime('%Y-%m-%d %H:%M:%S')
-
-# 스케줄러 생성 (타임존 설정 안하면 warning 뜸)
-sched = BlockingScheduler(timezone='Asia/Seoul')
-
+bid_nums = ['20221105756', '20221018514', '20221020471', '20221024478', '20221113274', '20220918041']
 
 def make_query(bid_nos: list = []) -> list:
+    words = ['교복', '학생복', '생활복', '동복', '하복'] # 검색어 (검색어 조정 시 여기를 수정할 것)
+
     # 요청url 잘게 자르기
     # url1 = 'http://apis.data.go.kr/1230000/BidPublicInfoService03'  # 02번이었음. 현재 입찰조회는 03번으로 변경됨.
     url1 = 'http://apis.data.go.kr/1230000/BidPublicInfoService03'  # 입찰조회
@@ -77,25 +56,6 @@ def make_query(bid_nos: list = []) -> list:
     url_list2 = []
     url_list3 = []
     url_list_no = []
-
-    if bid_nos: # 입찰번호 제공될때는 처리 후 탈출
-        for no in bid_nos:
-            url_assemble_no = (
-                url2
-                + operation_name2
-                + inqryDiv3
-                # + inqryBgnDt
-                # + inqryEndDt
-                + pageNo
-                + numOfRows
-                + inqrybidNtceNo + no
-                + rt_type
-                + serviceKey
-                )
-            url_list_no.append(url_assemble_no)
-        return url_list_no
-    
-
     for word in words:
         # 입찰공고 URL
         url_assemble1 = (
@@ -143,10 +103,114 @@ def make_query(bid_nos: list = []) -> list:
         url_list2.append(url_assemble2)
         url_list3.append(url_assemble3)
 
-    
+    if bid_nos:
+        for no in bid_nos:
+            url_assemble_no = (
+                url2
+                + operation_name2
+                + inqryDiv3
+                # + inqryBgnDt
+                # + inqryEndDt
+                + pageNo
+                + numOfRows
+                + inqrybidNtceNo + no
+                + rt_type
+                + serviceKey
+                )
+            url_list_no.append(url_assemble_no)
 
-    # return url_list1, url_list2, url_list_no
-    return url_list1, url_list2, url_list3
+    return url_list1, url_list2, url_list_no
+    # return url_list1, url_list2, url_list3
+
+
+a, b, c = make_query(bid_nos = bid_nums)
+
+for i in a:
+    print(i)
+
+print()
+
+for j in b:
+    print(j)
+
+print()
+
+for k in c:
+    print(k)
+
+
+
+
+# # 입찰공고 URL
+# url_assemble1 = (
+#     url1
+#     + operation_name1
+#     + inqryDiv1
+#     + inqryBgnDt
+#     + inqryEndDt
+#     + pageNo
+#     + numOfRows
+#     + inqrybidNtceNm
+#     + rt_type
+#     + serviceKey
+# )
+
+# # 개찰결과 URL
+# url_assemble2 = (
+#     url2
+#     + operation_name2
+#     + inqryDiv2
+#     + inqryBgnDt
+#     + inqryEndDt
+#     + pageNo
+#     + numOfRows
+#     + inqrybidNtceNm
+#     + rt_type
+#     + serviceKey
+# )
+
+# # 낙찰목록 URL
+# url_assemble3 = (
+#     url2
+#     + operation_name3
+#     + inqryDiv2
+#     + inqryBgnDt
+#     + inqryEndDt
+#     + pageNo
+#     + numOfRows
+#     + inqrybidNtceNm
+#     + rt_type
+#     + serviceKey
+# )
+
+# # # 공고번호 URL (늦은 개찰)
+# # url_assemble4 = (
+# #     url2
+# #     + operation_name2
+# #     + inqryDiv3
+# #     + pageNo
+# #     + numOfRows
+# #     + inqrybidNtceNo + bidno
+# #     + rt_type
+# #     + serviceKey
+# # )
+
+
+# # 텔레그램 봇 생성
+# token = config.TELEGRAM_API_Keys['token']
+# bot = telegram.Bot(token)
+# t_id = config.TELEGRAM_API_Keys['telegram_id']  # 채널
+# interv_num = 1
+
+# info_message = f'''{interv_num}시간 주기로 데이터를 가져옵니다.
+# 입찰명 검색어는 "교복" 으로 설정되어 있습니다. '''
+
+# # 오늘 날짜
+# today = datetime.today().strftime('%Y-%m-%d %H:%M:%S')
+
+
+# # 스케줄러 생성 (타임존 설정 안하면 warning 뜸)
+# sched = BlockingScheduler(timezone='Asia/Seoul')
 
 
 # 데이터 추출 parser
@@ -255,143 +319,114 @@ def json_parse(gbn: int, urls: list) -> pd.DataFrame:
         print(f'{url}\n수행 중 알 수 없는 에러가 발생하였습니다.')
         print(e)
 
+# print(json_parse(1, a))
+# print(tabulate(json_parse(1, a), showindex="always"))
 
-def send_list():
-    try:
-        bot.sendMessage(chat_id=t_id, text=info_message)
+
+# def send_list():
+#     try:
+#         bot.sendMessage(chat_id=t_id, text=info_message)
+#         # 입찰공고
+#         gongo = json_parse(1)
+
+#         # 현재시각
+#         t_day = datetime.today().strftime('%m-%d %H:%M:%S')
+
+#         if gongo is not None:
         
-        # 입찰공고
-        urls1, urls2, urls3 = make_query()
+#             # 총 건수
+#             num = str(len(gongo.index))
 
-        gongo = json_parse(1, urls1)
+#             # 본문 표
+#             gongo = gongo.to_markdown()
 
-        # 현재시각
-        t_day = datetime.today().strftime('%m-%d %H:%M:%S')
+#             print(gongo)
+#             bot.send_message(chat_id=t_id, text='{}'.format(gongo), parse_mode='Markdown')
 
-        if gongo is not None:
+#             bot.sendMessage(
+#                 chat_id=t_id, text=f'> 현재시각  {t_day} \n> 금일 입찰공고 총 {num} 건 입니다. (공고게시일 기준)'
+#                 )
+#         else:
+#             bot.sendMessage(
+#                 chat_id=t_id, text=f'> 현재시각  {t_day} \n> 오늘은 입찰공고가 아직 없습니다.'
+#                 )
         
-            # 총 건수
-            num = str(len(gongo.index))
+#     except AttributeError:
+#         bot.sendMessage(
+#             chat_id=t_id, text=f'> 현재시각  {t_day} \n> 금일 입찰공고 총 0 건 입니다. (공고게시일 기준)'
+#         )
+#     except Exception as e:
+#         print('입찰공고 조회중 알 수 없는 에러가 발생하였습니다.')
+#         print(e)
 
-            # 본문 표
-            # gongo = gongo.to_markdown()
+#     try:
+#         # 개찰결과
+#         gaechal = json_parse(2)
 
-            print(gongo)
-            bot.send_message(chat_id=t_id, text='{}'.format(gongo), parse_mode='Markdown')
-            # bot.send_message(chat_id=t_id, text='{}'.format(tabulate(gongo, tablefmt="plain", showindex="always")), parse_mode='Markdown')
-            
+#         # 현재시각
+#         t_day = datetime.today().strftime('%m-%d %H:%M:%S')
 
-            bot.sendMessage(
-                chat_id=t_id, text=f'> 현재시각  {t_day} \n> 금일 입찰공고 총 {num} 건 입니다. (공고게시일 기준)'
-                )
-        else:
-            bot.sendMessage(
-                chat_id=t_id, text=f'> 현재시각  {t_day} \n> 오늘은 입찰공고가 아직 없습니다.'
-                )
+#         if gaechal is not None:
         
-    except AttributeError:
-        bot.sendMessage(
-            chat_id=t_id, text=f'> 현재시각  {t_day} \n> 금일 입찰공고 총 0 건 입니다. (공고게시일 기준)'
-        )
-    except Exception as e:
-        print('입찰공고 조회중 알 수 없는 에러가 발생하였습니다.')
-        print(e)
+#             # 총 건수
+#             num = str(len(gaechal.index))
 
-    try:
-        # 개찰결과
-        gaechal = json_parse(2, urls2)
+#             # 본문 표
+#             gaechal = gaechal.to_markdown()
+#             print(gaechal)
+#             bot.send_message(chat_id=t_id, text=f'{gaechal}', parse_mode='Markdown')
 
-        # 현재시각
-        t_day = datetime.today().strftime('%m-%d %H:%M:%S')
-
-        if gaechal is not None:
+#             bot.sendMessage(
+#                 chat_id=t_id, text=f'> 현재시각  {t_day} \n> 금일 개찰결과 총 {num} 건 입니다. (개찰일 조회기준)'
+#                 )
         
-            # 총 건수
-            num = str(len(gaechal.index))
+#         else:
+#             bot.sendMessage(
+#                 chat_id=t_id, text=f'> 현재시각  {t_day} \n> 오늘은 개찰결과가 아직 없습니다.'
+#                 )
 
-            # 본문 표
-            # gaechal = gaechal.to_markdown()
-            print(gaechal)
-            bot.send_message(chat_id=t_id, text=f'{gaechal}', parse_mode='Markdown')
-            # bot.send_message(chat_id=t_id, text=f'{tabulate(gaechal, tablefmt="plain", showindex="always")}', parse_mode='Markdown')
+#     except AttributeError:
+#         bot.sendMessage(
+#             chat_id=t_id, text=f'> 현재시각  {t_day} \n> 금일 개찰결과 총 0 건 입니다. (개찰일 조회기준)'
+#         )
+#     except Exception as e:
+#         print('개찰결과 조회중 알 수 없는 에러가 발생하였습니다.')
+#         print(e)
 
-            bot.sendMessage(
-                chat_id=t_id, text=f'> 현재시각  {t_day} \n> 금일 개찰결과 총 {num} 건 입니다. (개찰일 조회기준)'
-                )
-        
-        else:
-            bot.sendMessage(
-                chat_id=t_id, text=f'> 현재시각  {t_day} \n> 오늘은 개찰결과가 아직 없습니다.'
-                )
+#     try:
+#         pass
 
-    except AttributeError:
-        bot.sendMessage(
-            chat_id=t_id, text=f'> 현재시각  {t_day} \n> 금일 개찰결과 총 0 건 입니다. (개찰일 조회기준)'
-        )
-    except Exception as e:
-        print('개찰결과 조회중 알 수 없는 에러가 발생하였습니다.')
-        print(e)
-
-    try:
-        pass
-
-    except AttributeError:
-        bot.sendMessage(
-            chat_id=t_id, text=f'> 현재시각  {t_day} \n> 금일 개찰결과 총 0 건 입니다. (공고번호 조회기준)'
-        )
-    except Exception as e:
-        print('개찰결과 공고번호 조회중 알 수 없는 에러가 발생하였습니다.')
-        print(e)
-
- 
-# 사용자가 보낸 메세지를 읽어들이고, 답장을 보내줍니다.
-# 아래 함수만 입맛에 맞게 수정해주면 됩니다. 다른 것은 건들 필요없어요.
-def handler(update, context):
-    user_text = update.message.text # 사용자가 보낸 메세지를 user_text 변수에 저장합니다.
-    if user_text == "/명령어":
-        bot.send_message(chat_id=t_id, text="< 명령어 사용법 >\n\n조건 1. \"/조회\" 명령어 뒤에 입찰번호 입력\n조건 2. 번호는 콤마로 구분\n\n예시 : /조회 입찰번호1, 입찰번호2") # 답장 보내기
-    elif user_text[:3] == "/조회": # 사용자가 보낸 메세지가 "안녕"이면?
-        input_bidno = user_text[3:].strip().replace(' ', '').split(',')
-        bot.send_message(chat_id=t_id, text=f"{input_bidno}") # 답장 보내기
-
-        bot.send_message(chat_id=t_id, text=f"{json_parse(2, make_query(bid_nos = input_bidno))}") # 답장 보내기
-        
-    # elif user_text == "뭐해": # 사용자가 보낸 메세지가 "뭐해"면?
-    #     bot.send_message(chat_id=id, text="그냥 있어") # 답장 보내기
+#     except AttributeError:
+#         bot.sendMessage(
+#             chat_id=t_id, text=f'> 현재시각  {t_day} \n> 금일 개찰결과 총 0 건 입니다. (공고번호 조회기준)'
+#         )
+#     except Exception as e:
+#         print('개찰결과 공고번호 조회중 알 수 없는 에러가 발생하였습니다.')
+#         print(e)
 
 
-if __name__ == '__main__':
-    # updater
-    updater = Updater(token=token, use_context=True)
-    dispatcher = updater.dispatcher
-    updater.start_polling()
+# if __name__ == '__main__':
+#     # 최초 시작
+#     send_list()
 
-    echo_handler = MessageHandler(Filters.text, handler)
-    dispatcher.add_handler(echo_handler)
+#     # 스케줄 설정
+#     # 수행방식은 3가지가 있습니다
+#     # Cron 방식 - Cron 표현식으로 수행
+#     # Date 방식 - 특정 날짜에 수행
+#     # Interval 방식 - 일정 주기로 수행
+
+#     # 1시간 마다 해당 코드 반복 실행
+#     # cron 매시간 59분 10초에 실행한다는 의미.
+#     # sched.add_job(send_list, 'cron', minute='59', second='10', id='test_11')
+#     # sched.add_job(send_list, 'interval', seconds=30)
     
+#     sched.add_job(
+#         send_list,
+#         'interval',
+#         hours=interv_num,
+#         start_date=f'{today}',
+#         end_date=f'{today[:10]} 18:00:00'
+#     )
 
-    # 최초 시작
-    send_list()
-
-    # 스케줄 설정
-    # 수행방식은 3가지가 있습니다
-    # Cron 방식 - Cron 표현식으로 수행
-    # Date 방식 - 특정 날짜에 수행
-    # Interval 방식 - 일정 주기로 수행
-
-    # 1시간 마다 해당 코드 반복 실행
-    # cron 매시간 59분 10초에 실행한다는 의미.
-    # sched.add_job(send_list, 'cron', minute='59', second='10', id='test_11')
-    # sched.add_job(send_list, 'interval', seconds=30)
-    
-    sched.add_job(
-        send_list,
-        'interval',
-        # hours=interv_num,
-        minutes=interv_num,
-        start_date=f'{today}',
-        end_date=f'{today[:10]} 18:00:00'
-    )
-
-    # 시작
-    sched.start()
+#     # 시작
+#     sched.start()
