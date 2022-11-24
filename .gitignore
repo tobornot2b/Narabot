@@ -3,5 +3,6 @@
 *.dll
 *.xlsx
 *.ipynb
+*.py
 
 !NaraJang_scheduler.py
