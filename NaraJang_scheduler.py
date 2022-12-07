@@ -36,7 +36,7 @@ today = datetime.today().strftime('%Y-%m-%d %H:%M:%S')
 sched = BlockingScheduler(timezone='Asia/Seoul')
 
 
-def make_query(bid_nos: list = []) -> list:
+def make_query(bid_nos: list = [], contract: list = []) -> list:
     # 요청url 잘게 자르기
     # url1 = 'http://apis.data.go.kr/1230000/BidPublicInfoService03'  # 02번이었음. 현재 입찰조회는 03번으로 변경됨.
     url1 = 'http://apis.data.go.kr/1230000/BidPublicInfoService03'  # 입찰조회
@@ -73,9 +73,20 @@ def make_query(bid_nos: list = []) -> list:
     inqrybidNtceNm = '&bidNtceNm='  # 입찰공고명
     inqrybidNtceNo = '&bidNtceNo=' # 입찰공고번호
 
-    url_list1 = []
-    url_list2 = []
-    url_list3 = []
+
+    # 나라장터검색조건에 의한 계약현황 물품조회 (위의 변수들과 명칭이 달라 호환불가)
+    url3 = 'http://apis.data.go.kr/1230000/CntrctInfoService'
+    operation_name6 = '/getCntrctInfoListThngPPSSrch'
+    inqryBgnDt2 = '&inqryBgnDate=' + datetime.today().strftime('%Y%m%d')  # 조회시작일시
+    inqryEndDt2 = '&inqryEndDate=' + datetime.today().strftime('%Y%m%d')  # 조회종료일시
+    inqrybidNtceNm2 = '&prdctClsfcNoNm=교복' # 품명 (검색어)
+    bid_method = '&cntrctMthdCd=' # 계약방법코드
+
+
+    url_list1 = [] # 입찰공고
+    url_list2 = [] # 개찰결과
+    url_list3 = [] # 낙찰조회
+    url_list4 = [] # 계약조회 (일반, 수의)
     url_list_no = []
 
     if bid_nos: # 입찰번호 제공될때는 처리 후 탈출
@@ -144,8 +155,26 @@ def make_query(bid_nos: list = []) -> list:
         url_list3.append(url_assemble3)
 
     
+    # 나라장터검색조건에 의한 계약현황 물품조회 URL
+    if contract: # 계약검색조건 ([1, 4]) 제공될때는 처리 후 탈출
+        for l in contract: # 1:일반경쟁, 4:수의계약
+            url_assemble4 = (
+                url3
+                + operation_name6
+                + inqryDiv1 # 1:계약체결일자, 2:확정계약번호, 3:요청번호, 4:공고번호 (품명검색은 1번만 가능하다)
+                + inqryBgnDt2
+                + inqryEndDt2
+                + pageNo
+                + numOfRows
+                + inqrybidNtceNm2
+                + bid_method + l
+                + rt_type
+                + serviceKey
+                )
 
-    # return url_list1, url_list2, url_list_no
+            url_list4.append(url_assemble4)
+        return url_list4
+
     return url_list1, url_list2, url_list3
 
 
@@ -194,16 +223,14 @@ def json_parse(gbn: int, urls: list) -> pd.DataFrame:
                 df['dminsttNm'] = df['dminsttNm'].str[:-2]
 
                 # 원하는 열만 뽑아내기
-                df = df[
-                    [
-                        'bidNtceNo',  # 입찰공고번호
-                        'bidNtceOrd',  # 입찰공고차수
-                        '지역',  # 위에서 새로만든 컬럼
-                        'dminsttNm',  # 수요기관명
-                        'prtcptCnum',  # 업체수
-                        'progrsDivCdNm',  # 진행구분코드명
-                    ]
-                ]
+                df = df[[
+                    'bidNtceNo',  # 입찰공고번호
+                    'bidNtceOrd',  # 입찰공고차수
+                    '지역',  # 위에서 새로만든 컬럼
+                    'dminsttNm',  # 수요기관명
+                    'prtcptCnum',  # 업체수
+                    'progrsDivCdNm',  # 진행구분코드명
+                    ]]
 
                 # 열이름 한글변경
                 df.columns = ['공고번호', '차수', '지역', '학교', '업체수', '상태구분']
@@ -239,13 +266,33 @@ def json_parse(gbn: int, urls: list) -> pd.DataFrame:
                     '낙찰금액',
                     '낙찰률',
                     '낙찰일자',
-                ]
+                    ]
+            
+            elif gbn == 4: # 계약조회
+                name_split = df['cntrctInsttNm'].str.split(' ')
+                df['cntrctInsttNm'] = name_split.str.get(-1)
+                df['cntrctInsttNm'] = df['cntrctInsttNm'].str[:-2]
+
+                df = df[[
+                    'dcsnCntrctNo',  # 확정계약번호
+                    'cntrctCnclsMthdNm',  # 계약체결방법명
+                    'cntrctInsttNm',  # 계약기관명
+                    'cntrctDtlInfoUrl',  # 계약상세정보URL
+                    ]]
+
+                df.columns = [
+                    '계약번호',
+                    '계약형태',
+                    '학교명',
+                    '상세URL',
+                    ]
 
             df_result = pd.concat([df_result, df])
         
         df_result = df_result.drop_duplicates()
         df_result = df_result.reset_index(drop=True)
         df_result.index = df_result.index + 1
+        
         return df_result
 
         # 열 정렬
@@ -279,7 +326,6 @@ def send_list():
             print(gongo)
             bot.send_message(chat_id=t_id, text='{}'.format(gongo), parse_mode='Markdown')
             # bot.send_message(chat_id=t_id, text='{}'.format(tabulate(gongo, tablefmt="plain", showindex="always")), parse_mode='Markdown')
-            
 
             bot.sendMessage(
                 chat_id=t_id, text=f'> 현재시각  {t_day} \n> 금일 입찰공고 총 {num} 건 입니다. (공고게시일 기준)'
@@ -288,7 +334,6 @@ def send_list():
             bot.sendMessage(
                 chat_id=t_id, text=f'> 현재시각  {t_day} \n> 오늘은 입찰공고가 아직 없습니다.'
                 )
-        
     except AttributeError:
         bot.sendMessage(
             chat_id=t_id, text=f'> 현재시각  {t_day} \n> 금일 입찰공고 총 0 건 입니다. (공고게시일 기준)'
@@ -318,12 +363,10 @@ def send_list():
             bot.sendMessage(
                 chat_id=t_id, text=f'> 현재시각  {t_day} \n> 금일 개찰결과 총 {num} 건 입니다. (개찰일 조회기준)'
                 )
-        
         else:
             bot.sendMessage(
                 chat_id=t_id, text=f'> 현재시각  {t_day} \n> 오늘은 개찰결과가 아직 없습니다.'
                 )
-
     except AttributeError:
         bot.sendMessage(
             chat_id=t_id, text=f'> 현재시각  {t_day} \n> 금일 개찰결과 총 0 건 입니다. (개찰일 조회기준)'
@@ -350,14 +393,15 @@ def handler(update, context):
     user_text = update.message.text # 사용자가 보낸 메세지를 user_text 변수에 저장합니다.
     if user_text == "/명령어":
         bot.send_message(chat_id=t_id, text="< 명령어 사용법 >\n\n조건 1. \"/조회\" 명령어 뒤에 입찰번호 입력\n조건 2. 번호는 콤마로 구분\n\n예시 : /조회 입찰번호1, 입찰번호2") # 답장 보내기
-    elif user_text[:3] == "/조회": # 사용자가 보낸 메세지가 "안녕"이면?
+    elif user_text[:3] == "/조회": # 입찰번호 개별조회
         input_bidno = user_text[3:].strip().replace(' ', '').split(',')
         bot.send_message(chat_id=t_id, text=f"{input_bidno}") # 답장 보내기
-
         bot.send_message(chat_id=t_id, text=f"{json_parse(2, make_query(bid_nos = input_bidno))}") # 답장 보내기
-        
-    # elif user_text == "뭐해": # 사용자가 보낸 메세지가 "뭐해"면?
-    #     bot.send_message(chat_id=id, text="그냥 있어") # 답장 보내기
+    elif user_text[:3] == "/계약": # 당일 계약 조회 (일반, 수의)
+        bot.send_message(chat_id=t_id, text=f"< 검색조건 >\n계약방법: 일반경쟁, 수의계약\n검색어: 교복\n검색일: 오늘")
+        bot.send_message(chat_id=t_id, text=f"{tabulate(json_parse(4, make_query(bid_nos = [], contract = ['1', '4'])), tablefmt='plain', showindex='always')}")
+        # tabulate 를 안쓰면 url이 축약됨..
+        # 문자열 따옴표 구분에 주의할 것
 
 
 if __name__ == '__main__':
