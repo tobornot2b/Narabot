@@ -4,5 +4,6 @@
 *.xlsx
 *.ipynb
 *.py
+*.csv
 
 !NaraJang_scheduler.py
