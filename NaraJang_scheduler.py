@@ -293,10 +293,7 @@ def json_parse(gbn: int, urls: list) -> pd.DataFrame:
         df_result = df_result.reset_index(drop=True)
         df_result.index = df_result.index + 1
         
-        if df_result:
-            return df_result
-        else:
-            return "조회 결과가 없습니다."
+        return df_result
 
         # 열 정렬
         # with pd.option_context('display.max_rows', None, 'display.max_columns', None):
