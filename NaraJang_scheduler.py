@@ -12,7 +12,7 @@ from apscheduler.schedulers.blocking import BlockingScheduler
 
 
 # 키 가져오기
-sys.path.append('/settings')
+sys.path.append('c:/settings')
 import config
 serviceKey = config.API_Keys['data_go_kr_Key']
 
@@ -293,7 +293,10 @@ def json_parse(gbn: int, urls: list) -> pd.DataFrame:
         df_result = df_result.reset_index(drop=True)
         df_result.index = df_result.index + 1
         
-        return df_result
+        if df_result:
+            return df_result
+        else:
+            return "조회 결과가 없습니다."
 
         # 열 정렬
         # with pd.option_context('display.max_rows', None, 'display.max_columns', None):
