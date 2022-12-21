@@ -22,11 +22,22 @@ token = config.TELEGRAM_API_Keys['token']
 bot = telegram.Bot(token)
 t_id = config.TELEGRAM_API_Keys['telegram_id']  # 채널
 interv_num = 30 # 시간 or 분 인터벌
+interv_num2 = 4 # 시간 or 분 인터벌 (체육복)
 words = ['교복', '학생복', '생활복', '동복', '하복'] # 검색어 (검색어 조정 시 여기를 수정할 것)
+words2 = ['체육복', '후드', '생활복'] # 체육복 검색어
+area_filter1 = [ ['서울', '인천', '시흥', '부천', '부평'], [] ] # 체육복 지역 필터링 (서울상권)
+area_filter2 = [ ['경기', '강원'], ['시흥', '부천', '부평'] ] # 체육복 지역 필터링 (중부상권)
 
 info_message = f'''{interv_num}분 주기로 데이터를 가져옵니다.\n
-입찰명 검색어는 {words} 으로 설정되어 있습니다.\n
+공고명 검색어 : {words}\n
 "/명령어"를 입력해서 기능을 확인하세요.'''
+
+info_message2 = f'''체육복 검색을 시작합니다.
+{interv_num2}시간 주기로 데이터를 가져옵니다.\n
+공고명 검색어 : {words2}
+서울상권 키워드 : {area_filter1[0]} 적용
+중부상권 키워드 : {area_filter2[0]} 적용 후 {area_filter2[1]} 제외\n
+체육복은 csv파일로 제공됩니다.'''
 
 
 # 오늘 날짜
@@ -36,7 +47,7 @@ today = datetime.today().strftime('%Y-%m-%d %H:%M:%S')
 sched = BlockingScheduler(timezone='Asia/Seoul')
 
 
-def make_query(bid_nos: list = [], contract: list = []) -> list:
+def make_query(bid_nos: list = [], contract: list = [], words = words) -> list:
     # 요청url 잘게 자르기
     # url1 = 'http://apis.data.go.kr/1230000/BidPublicInfoService03'  # 02번이었음. 현재 입찰조회는 03번으로 변경됨.
     url1 = 'http://apis.data.go.kr/1230000/BidPublicInfoService03'  # 입찰조회
@@ -68,7 +79,7 @@ def make_query(bid_nos: list = [], contract: list = []) -> list:
     pageNo = '&pageNo=1'  # 페이지 번호
     rt_type = '&type=json'  # 자료리턴 타입
     inqryBgnDt = '&inqryBgnDt=' + datetime.today().strftime('%Y%m%d') + '0000'  # 조회시작일시
-    # inqryBgnDt = '&inqryBgnDt=' + '20211220' + '0000' # 조회시작일시
+    # inqryBgnDt = '&inqryBgnDt=' + '20221201' + '0000' # 조회시작일시
     inqryEndDt = '&inqryEndDt=' + datetime.today().strftime('%Y%m%d') + '2359'  # 조회종료일시
     inqrybidNtceNm = '&bidNtceNm='  # 입찰공고명
     inqrybidNtceNo = '&bidNtceNo=' # 입찰공고번호
@@ -178,10 +189,8 @@ def make_query(bid_nos: list = [], contract: list = []) -> list:
     return url_list1, url_list2, url_list3
 
 
-# 데이터 추출 parser
 def json_parse(gbn: int, urls: list) -> pd.DataFrame:
     df_result = pd.DataFrame()
-
     try:
         # parsing 하기
         for i, url in enumerate(urls):
@@ -303,88 +312,206 @@ def json_parse(gbn: int, urls: list) -> pd.DataFrame:
         print(e)
 
 
+def json_parse2(gbn: int, urls: list, filter: list) -> pd.DataFrame: # 체육복용
+    df_result = pd.DataFrame()
+    try:
+        for i, url in enumerate(urls):
+            result = requests.get(url)
+            result_data = result.json()
+            if result_data['response']['body']['totalCount'] == 0:
+                print(f'리스트의 {i+1}번째 URL 조회결과가 없어서 다음으로 넘어간다.')
+                continue
+            df = pd.json_normalize(result_data['response']['body']['items'])
+
+            if gbn == 1:
+                # 원하는 열만 뽑아내기
+                df = df[[
+                        'bidNtceNo',  # 입찰공고번호
+                        'bidNtceOrd',  # 입찰공고차수
+                        'ntceKindNm',  # 공고종류명
+                        'bidNtceDt',  # 입찰공고일시
+                        'bidNtceNm',  # 입찰공고명
+                        'ntceInsttNm',  # 공고기관명
+                        'cntrctCnclsMthdNm', # 계약체결방법명
+                        'bidBeginDt',  # 입찰개시일시
+                        'bidClseDt',  # 입찰마감일시
+                        'opengDt',  # 개찰일시
+                        'asignBdgtAmt',  # 배정예산금액
+                        'bidNtceDtlUrl',  # 입찰공고상세URL
+                        'prdctQty',  # 물품수량
+                        'rgstDt',  # 등록일시
+                        ]]
+
+                # 열이름 한글변경
+                df.columns = [
+                    '입찰공고번호', '입찰공고차수', '공고종류명', '입찰공고일시', '입찰공고명',
+                    '공고기관명', '계약체결방법명', '입찰개시일시', '입찰마감일시', '개찰일시',
+                    '배정예산금액', '입찰공고상세URL', '물품수량', '등록일시'
+                    ]
+
+                df['공고기관명'] = df['공고기관명'].str.replace('교육청', '').str.replace('교육지원청', '').str.replace('교육지원청', '').str.replace('교육과학기술부', '').str.replace('교육부', '')
+                df['지역'] = df['공고기관명'].str.split(' ').str[:-1].str.join(' ')
+                df['학교'] = df['공고기관명'].str.split(' ').str[-1].str.replace('등학교', '').str.replace('중학교', '중')
+                df1 = df[df['공고기관명'].str.contains('|'.join(filter[0]), na=False)] # 지역필터링(join 함수는 리스트를 문자열로 변환, na=False는 NaN값을 제외하고 검색)
+                if len(filter[1]) != 0:
+                    df1 = df1[~df1['공고기관명'].str.contains('|'.join(filter[1]))] # 2차필터링 (제외할 것들)
+                df1 = df1.drop(['공고기관명'], axis=1)
+
+            elif gbn == 2:
+                # 원하는 열만 뽑아내기
+                df = df[[
+                    'bidNtceNo',  # 입찰공고번호
+                    'bidNtceOrd',  # 입찰공고차수
+                    'bidNtceNm',  # 입찰공고명
+                    'opengDt',  # 개찰일시
+                    'prtcptCnum',  # 참가업체수
+                    'opengCorpInfo',  # 개찰업체정보
+                    'progrsDivCdNm',  # 진행구분코드명
+                    'inptDt',  # 입력일시
+                    'dminsttNm',  # 수요기관명
+                    ]]
+
+                # 열이름 한글변경
+                df.columns = ['입찰공고번호', '입찰공고차수', '입찰공고명', '개찰일시', '참가업체수', '개찰업체정보', '진행구분코드명', '입력일시', '수요기관명']
+                sep = df['개찰업체정보'].str.split('^')
+                df['1위_업체명'] = sep.str[0]
+                # df['사업자등록번호'] = sep.str[1]
+                # df['대표자'] = sep.str[2]
+                df['투찰금액'] = sep.str[3]
+                df['투찰율'] = sep.str[4]
+                df = df.drop(['개찰업체정보'], axis=1)
+                df = df[[
+                    '입찰공고번호', '입찰공고차수', '입찰공고명', '개찰일시', '참가업체수',
+                    '1위_업체명', '투찰금액', '투찰율',
+                    '진행구분코드명', '입력일시', '수요기관명'
+                ]]
+                
+                df['수요기관명'] = df['수요기관명'].str.replace('교육청', '').str.replace('교육지원청', '').str.replace('교육지원청', '').str.replace('교육과학기술부', '').str.replace('교육부', '')
+                df['지역'] = df['수요기관명'].str.split(' ').str[:-1].str.join(' ')
+                df['학교'] = df['수요기관명'].str.split(' ').str[-1].str.replace('등학교', '').str.replace('중학교', '중')
+                df1 = df[df['수요기관명'].str.contains('|'.join(filter[0]), na=False)] # 지역필터링(join 함수는 리스트를 문자열로 변환, na=False는 NaN값을 제외하고 검색)
+                if len(filter[1]) != 0:
+                    df1 = df1[~df1['수요기관명'].str.contains('|'.join(filter[1]))] # 2차필터링 (제외할 것들)
+                df1 = df1.drop(['수요기관명'], axis=1)
+
+            df_result = pd.concat([df_result, df1])
+        
+        df_result = df_result.drop_duplicates()
+        df_result = df_result.reset_index(drop=True)
+        df_result.index = df_result.index + 1
+        
+        return df_result
+    except Exception as e:
+        print(f'{url}\n수행 중 알 수 없는 에러가 발생하였습니다.')
+        print(e)
+
+
 def send_list():
     try:
         bot.sendMessage(chat_id=t_id, text=info_message)
-        
-        # 입찰공고
-        urls1, urls2, urls3 = make_query()
-
+        urls1, urls2, urls3 = make_query() # 입찰공고
         gongo = json_parse(1, urls1)
-
-        # 현재시각
-        t_day = datetime.today().strftime('%m-%d %H:%M:%S')
-
+        t_day = datetime.today().strftime('%m-%d %H:%M:%S') # 현재시각
         if gongo is not None:
-        
-            # 총 건수
-            num = str(len(gongo.index))
-
-            # 본문 표
-            # gongo = gongo.to_markdown()
-
+            num = str(len(gongo.index)) # 총 건수
+            # gongo = gongo.to_markdown() # 본문 표
             print(gongo)
             bot.send_message(chat_id=t_id, text='{}'.format(gongo), parse_mode='Markdown')
             # bot.send_message(chat_id=t_id, text='{}'.format(tabulate(gongo, tablefmt="plain", showindex="always")), parse_mode='Markdown')
-
-            bot.sendMessage(
-                chat_id=t_id, text=f'> 현재시각  {t_day} \n> 금일 입찰공고 총 {num} 건 입니다. (공고게시일 기준)'
-                )
+            bot.sendMessage(chat_id=t_id, text=f'> 현재시각  {t_day} \n> 금일 입찰공고 총 {num} 건 입니다. (공고게시일 기준)')
         else:
-            bot.sendMessage(
-                chat_id=t_id, text=f'> 현재시각  {t_day} \n> 오늘은 입찰공고가 아직 없습니다.'
-                )
+            bot.sendMessage(chat_id=t_id, text=f'> 현재시각  {t_day} \n> 오늘은 입찰공고가 아직 없습니다.')
     except AttributeError:
-        bot.sendMessage(
-            chat_id=t_id, text=f'> 현재시각  {t_day} \n> 금일 입찰공고 총 0 건 입니다. (공고게시일 기준)'
-        )
+        bot.sendMessage(chat_id=t_id, text=f'> 현재시각  {t_day} \n> 금일 입찰공고 총 0 건 입니다. (공고게시일 기준)')
     except Exception as e:
         print('입찰공고 조회중 알 수 없는 에러가 발생하였습니다.')
         print(e)
 
     try:
-        # 개찰결과
-        gaechal = json_parse(2, urls2)
-
-        # 현재시각
-        t_day = datetime.today().strftime('%m-%d %H:%M:%S')
-
+        gaechal = json_parse(2, urls2) # 개찰결과
+        t_day = datetime.today().strftime('%m-%d %H:%M:%S') # 현재시각
         if gaechal is not None:
-        
-            # 총 건수
-            num = str(len(gaechal.index))
-
-            # 본문 표
-            # gaechal = gaechal.to_markdown()
+            num = str(len(gaechal.index)) # 총 건수
+            # gaechal = gaechal.to_markdown() # 본문 표
             print(gaechal)
             bot.send_message(chat_id=t_id, text=f'{gaechal}', parse_mode='Markdown')
             # bot.send_message(chat_id=t_id, text=f'{tabulate(gaechal, tablefmt="plain", showindex="always")}', parse_mode='Markdown')
-
-            bot.sendMessage(
-                chat_id=t_id, text=f'> 현재시각  {t_day} \n> 금일 개찰결과 총 {num} 건 입니다. (개찰일 조회기준)'
-                )
+            bot.sendMessage(chat_id=t_id, text=f'> 현재시각  {t_day} \n> 금일 개찰결과 총 {num} 건 입니다. (개찰일 조회기준)')
         else:
-            bot.sendMessage(
-                chat_id=t_id, text=f'> 현재시각  {t_day} \n> 오늘은 개찰결과가 아직 없습니다.'
-                )
+            bot.sendMessage(chat_id=t_id, text=f'> 현재시각  {t_day} \n> 오늘은 개찰결과가 아직 없습니다.')
     except AttributeError:
-        bot.sendMessage(
-            chat_id=t_id, text=f'> 현재시각  {t_day} \n> 금일 개찰결과 총 0 건 입니다. (개찰일 조회기준)'
-        )
+        bot.sendMessage(chat_id=t_id, text=f'> 현재시각  {t_day} \n> 금일 개찰결과 총 0 건 입니다. (개찰일 조회기준)')
     except Exception as e:
         print('개찰결과 조회중 알 수 없는 에러가 발생하였습니다.')
         print(e)
 
     try:
         pass
-
     except AttributeError:
-        bot.sendMessage(
-            chat_id=t_id, text=f'> 현재시각  {t_day} \n> 금일 개찰결과 총 0 건 입니다. (공고번호 조회기준)'
-        )
+        bot.sendMessage(chat_id=t_id, text=f'> 현재시각  {t_day} \n> 금일 개찰결과 총 0 건 입니다. (공고번호 조회기준)')
     except Exception as e:
         print('개찰결과 공고번호 조회중 알 수 없는 에러가 발생하였습니다.')
         print(e)
+
+
+def send_list2(): # 체육복용
+    try:
+        bot.sendMessage(chat_id=t_id, text=info_message2)
+        urls1, urls2, urls3 = make_query(words=words2) # 입찰공고
+        gongo_seoul = json_parse2(1, urls1, area_filter1) # 서울
+        gongo_joongboo = json_parse2(1, urls1, area_filter2) # 중부
+        t_day = datetime.today().strftime('%m-%d %H:%M:%S') # 현재시각
+        
+        if gongo_seoul is not None:
+            num = str(len(gongo_seoul.index)) # 총 건수
+            print(gongo_seoul)
+            if num != '0':
+                gongo_seoul.to_csv('gongo_seoul.csv', encoding='utf-8-sig', mode='w') # csv 파일로 저장(mode='w' : 덮어쓰기)
+                bot.sendDocument(chat_id=t_id, document=open('gongo_seoul.csv', 'rb')) # 텔레그램에 csv 파일 전송
+            bot.sendMessage(chat_id=t_id, text=f'> 현재시각  {t_day} \n> 금일 서울상권 체육복 입찰공고 총 {num} 건 입니다. (공고게시일 기준)')
+        
+        if gongo_joongboo is not None:
+            num = str(len(gongo_joongboo.index)) # 총 건수
+            print(gongo_joongboo)
+            if num != '0':
+                gongo_joongboo.to_csv('gongo_joongboo.csv', encoding='utf-8-sig', mode='w') # csv 파일로 저장(mode='w' : 덮어쓰기)
+                bot.sendDocument(chat_id=t_id, document=open('gongo_joongboo.csv', 'rb')) # 텔레그램에 csv 파일 전송
+            bot.sendMessage(chat_id=t_id, text=f'> 현재시각  {t_day} \n> 금일 중부상권 체육복 입찰공고 총 {num} 건 입니다. (공고게시일 기준)')
+    except AttributeError:
+        bot.sendMessage(chat_id=t_id, text=f'> 현재시각  {t_day} \n> 금일 체육복 입찰공고 총 0 건 입니다. (공고게시일 기준)')
+    except Exception as e:
+        print('체육복 입찰공고 조회중 알 수 없는 에러가 발생하였습니다.')
+        print(e)
+
+    try:
+        gaechal_seoul = json_parse2(2, urls2, area_filter1) # 서울
+        gaechal_joongboo = json_parse2(2, urls2, area_filter2) # 중부
+        t_day = datetime.today().strftime('%m-%d %H:%M:%S') # 현재시각
+        
+        if gaechal_seoul is not None:
+            num = str(len(gaechal_seoul.index)) # 총 건수
+            print(gaechal_seoul)
+            if num != '0':
+                gaechal_seoul.to_csv('gaechal_seoul.csv', encoding='utf-8-sig', mode='w')
+                # 텔레그램에 csv 파일 전송
+                bot.sendDocument(chat_id=t_id, document=open('gaechal_seoul.csv', 'rb'))
+            bot.sendMessage(chat_id=t_id, text=f'> 현재시각  {t_day} \n> 금일 서울상권 체육복 개찰결과 총 {num} 건 입니다. (개찰일 조회기준)')
+        
+        if gaechal_joongboo is not None:
+            num = str(len(gaechal_joongboo.index)) # 총 건수
+            print(gaechal_joongboo)
+            if num != '0':
+                gaechal_joongboo.to_csv('gaechal_joongboo.csv', encoding='utf-8-sig', mode='w')
+                # 텔레그램에 csv 파일 전송
+                bot.sendDocument(chat_id=t_id, document=open('gaechal_joongboo.csv', 'rb'))
+            bot.sendMessage(chat_id=t_id, text=f'> 현재시각  {t_day} \n> 금일 중부상권 체육복 개찰결과 총 {num} 건 입니다. (개찰일 조회기준)')
+        
+    except AttributeError:
+        bot.sendMessage(chat_id=t_id, text=f'> 현재시각  {t_day} \n> 금일 체육복 개찰결과 총 0 건 입니다. (개찰일 조회기준)')
+    except Exception as e:
+        print('체육복 개찰결과 조회중 알 수 없는 에러가 발생하였습니다.')
+        print(e)
+
 
  
 # 사용자가 보낸 메세지를 읽어들이고, 답장을 보내줍니다.
@@ -416,6 +543,7 @@ if __name__ == '__main__':
 
     # 최초 시작
     send_list()
+    send_list2()
 
     # 스케줄 설정
     # 수행방식은 3가지가 있습니다
@@ -436,6 +564,16 @@ if __name__ == '__main__':
         start_date=f'{today}',
         end_date=f'{today[:10]} 18:00:00'
     )
+
+    sched.add_job(
+        send_list2,
+        'interval',
+        hours=interv_num2,
+        # minutes=interv_num,
+        start_date=f'{today}',
+        end_date=f'{today[:10]} 18:00:00'
+    )
+
 
     # 시작
     sched.start()
