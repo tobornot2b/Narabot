@@ -519,14 +519,101 @@ def send_list2(): # 체육복용
 def handler(update, context):
     user_text = update.message.text # 사용자가 보낸 메세지를 user_text 변수에 저장합니다.
     if user_text == "/명령어":
-        bot.send_message(chat_id=t_id, text="< 명령어 사용법 >\n\n조건 1. \"/조회\" 명령어 뒤에 입찰번호 입력\n조건 2. 번호는 콤마로 구분\n\n예시 : /조회 입찰번호1, 입찰번호2") # 답장 보내기
+        bot.send_message(
+            chat_id=t_id,
+            text='''< 명령어 일람 >
+    1. /명령어     -> 명령어 일람
+    2. /조회     -> 입찰번호로 개찰결과 조회
+    3. /공고     -> 입찰공고 일괄조회 (공고일 기준)
+    4. /개찰     -> 개찰결과 일괄조회 (개찰일 기준)
+    5. /계약     -> 계약결과 일괄조회 (일반, 수의)
+    6. /체육복     -> 체육복 입찰공고, 개찰결과 일괄조회
+
+< '조회' 명령어 사용법 >
+    조건 1. \"/조회\" 명령어 뒤에 한 칸 비우고 입찰번호 입력
+                (여러개 입력 가능)
+    조건 2. 번호는 콤마로 구분
+            
+    예시 : /조회 입찰번호1, 입찰번호2''') # 답장 보내기
     elif user_text[:3] == "/조회": # 입찰번호 개별조회
         input_bidno = user_text[3:].strip().replace(' ', '').split(',')
         bot.send_message(chat_id=t_id, text=f"{input_bidno}") # 답장 보내기
         bot.send_message(chat_id=t_id, text=f"{json_parse(2, make_query(bid_nos = input_bidno))}") # 답장 보내기
+    elif user_text[:3] == "/공고": # 당일 입찰공고 조회
+        urls1, _, _ = make_query() # 입찰공고
+        gongo = json_parse(1, urls1)
+        bot.send_message(chat_id=t_id, text=f"< 검색조건 >\n검색대상: 입찰공고(공고게시일 기준)\n검색어: {words}\n검색일: 오늘")
+        if len(gongo.index) > 0:
+            t_day = datetime.today().strftime('%m-%d %H:%M:%S') # 현재시각
+            num = str(len(gongo.index)) # 총 건수
+            print(gongo)
+            bot.send_message(chat_id=t_id, text=f'{tabulate(gongo, tablefmt="plain", showindex="always")}')
+            bot.sendMessage(chat_id=t_id, text=f'> 현재시각  {t_day} \n> 입찰공고 총 {num} 건 입니다.')
+        else:
+            bot.send_message(chat_id=t_id, text=f'입찰공고가 없습니다.')
+    elif user_text[:3] == "/개찰": # 당일 개찰결과 조회
+        _, urls2, _ = make_query() # 개찰결과
+        gaechal = json_parse(2, urls2) # 개찰결과
+        bot.send_message(chat_id=t_id, text=f"< 검색조건 >\n검색대상: 개찰결과(개찰일 기준 조회)\n검색어: {words}\n검색일: 오늘")
+        if len(gaechal.index) > 0:   # 개찰결과가 있을 경우
+            t_day = datetime.today().strftime('%m-%d %H:%M:%S') # 현재시각
+            num = str(len(gaechal.index)) # 총 건수
+            print(gaechal)
+            bot.send_message(chat_id=t_id, text=f'{tabulate(gaechal, tablefmt="plain", showindex="always")}')
+            bot.sendMessage(chat_id=t_id, text=f'> 현재시각  {t_day} \n> 개찰결과 총 {num} 건 입니다.')
+        else:
+            bot.send_message(chat_id=t_id, text=f'개찰결과가 없습니다.')
     elif user_text[:3] == "/계약": # 당일 계약 조회 (일반, 수의)
+        contract = json_parse(4, make_query(bid_nos = [], contract = ['1', '4']))
         bot.send_message(chat_id=t_id, text=f"< 검색조건 >\n계약방법: 일반경쟁, 수의계약\n검색어: 교복\n검색일: 오늘")
-        bot.send_message(chat_id=t_id, text=f"{tabulate(json_parse(4, make_query(bid_nos = [], contract = ['1', '4'])), tablefmt='plain', showindex='always')}")
+        if len(contract.index) > 0:
+            t_day = datetime.today().strftime('%m-%d %H:%M:%S')
+            num = str(len(contract.index))
+            print(contract)
+            bot.send_message(chat_id=t_id, text=f"{tabulate(contract, tablefmt='plain', showindex='always')}")
+            bot.sendMessage(chat_id=t_id, text=f'> 현재시각  {t_day} \n> 계약결과 총 {num} 건 입니다.')
+        else:
+            bot.send_message(chat_id=t_id, text=f"> 계약결과가 없습니다.")
+    elif user_text == "/체육복": # 체육복 조회
+        urls1, urls2, _ = make_query(words=words2) # 입찰공고, 개찰결과
+        gongo_seoul = json_parse2(1, urls1, area_filter1) # 서울 입찰공고
+        gongo_joongboo = json_parse2(1, urls1, area_filter2) # 중부 입찰공고
+        gaechal_seoul = json_parse2(2, urls2, area_filter1) # 서울 개찰결과
+        gaechal_joongboo = json_parse2(2, urls2, area_filter2) # 중부 개찰결과
+        bot.send_message(chat_id=t_id, text=f"< 검색조건 >\n검색대상: 입찰공고, 개찰결과\n검색어: {words2}\n검색일: 오늘")
+        nums = []
+        if len(gongo_seoul.index) > 0: # 서울 입찰공고가 있을 경우
+            nums.append(str(len(gongo_seoul.index))) # 총 건수
+            print(gongo_seoul)
+            gongo_seoul.to_csv('gongo_seoul.csv', encoding='utf-8-sig', mode='w') # csv 파일로 저장(mode='w' : 덮어쓰기)
+            bot.sendDocument(chat_id=t_id, document=open('gongo_seoul.csv', 'rb')) # 텔레그램에 csv 파일 전송
+        else:
+            nums.append('0')
+        if len(gongo_joongboo.index) > 0:
+            nums.append(str(len(gongo_joongboo.index)))
+            print(gongo_joongboo)
+            gongo_joongboo.to_csv('gongo_joongboo.csv', encoding='utf-8-sig', mode='w')
+            bot.sendDocument(chat_id=t_id, document=open('gongo_joongboo.csv', 'rb'))
+        else:
+            nums.append('0')
+        if len(gaechal_seoul.index) > 0:
+            nums.append(str(len(gaechal_seoul.index)))
+            print(gaechal_seoul)
+            gaechal_seoul.to_csv('gaechal_seoul.csv', encoding='utf-8-sig', mode='w')
+            bot.sendDocument(chat_id=t_id, document=open('gaechal_seoul.csv', 'rb'))
+        else:
+            nums.append('0')
+        if len(gaechal_joongboo.index) > 0:
+            nums.append(str(len(gaechal_joongboo.index)))
+            print(gaechal_joongboo)
+            gaechal_joongboo.to_csv('gaechal_joongboo.csv', encoding='utf-8-sig', mode='w')
+            bot.sendDocument(chat_id=t_id, document=open('gaechal_joongboo.csv', 'rb'))
+        else:
+            nums.append('0')
+        
+        t_day = datetime.today().strftime('%m-%d %H:%M:%S')
+        bot.sendMessage(chat_id=t_id, text=f'> 현재시각  {t_day} \n> 서울 체육복 입찰공고 {nums[0]} 건\n> 중부 체육복 입찰공고 {nums[1]} 건\n> 서울 체육복 개찰결과 {nums[2]} 건\n> 중부 체육복 개찰결과 {nums[3]} 건 입니다.')
+
         # tabulate 를 안쓰면 url이 축약됨..
         # 문자열 따옴표 구분에 주의할 것
 
