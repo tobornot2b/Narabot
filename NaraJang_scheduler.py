@@ -540,9 +540,9 @@ def handler(update, context):
         bot.send_message(chat_id=t_id, text=f"{input_bidno}") # 답장 보내기
         bot.send_message(chat_id=t_id, text=f"{json_parse(2, make_query(bid_nos = input_bidno))}") # 답장 보내기
     elif user_text[:3] == "/공고": # 당일 입찰공고 조회
+        bot.send_message(chat_id=t_id, text=f"< 검색조건 >\n검색대상: 입찰공고(공고게시일 기준)\n검색어: {words}\n검색일: 오늘")
         urls1, _, _ = make_query() # 입찰공고
         gongo = json_parse(1, urls1)
-        bot.send_message(chat_id=t_id, text=f"< 검색조건 >\n검색대상: 입찰공고(공고게시일 기준)\n검색어: {words}\n검색일: 오늘")
         if len(gongo.index) > 0:
             t_day = datetime.today().strftime('%m-%d %H:%M:%S') # 현재시각
             num = str(len(gongo.index)) # 총 건수
@@ -552,9 +552,9 @@ def handler(update, context):
         else:
             bot.send_message(chat_id=t_id, text=f'입찰공고가 없습니다.')
     elif user_text[:3] == "/개찰": # 당일 개찰결과 조회
+        bot.send_message(chat_id=t_id, text=f"< 검색조건 >\n검색대상: 개찰결과(개찰일 기준 조회)\n검색어: {words}\n검색일: 오늘")
         _, urls2, _ = make_query() # 개찰결과
         gaechal = json_parse(2, urls2) # 개찰결과
-        bot.send_message(chat_id=t_id, text=f"< 검색조건 >\n검색대상: 개찰결과(개찰일 기준 조회)\n검색어: {words}\n검색일: 오늘")
         if len(gaechal.index) > 0:   # 개찰결과가 있을 경우
             t_day = datetime.today().strftime('%m-%d %H:%M:%S') # 현재시각
             num = str(len(gaechal.index)) # 총 건수
@@ -564,8 +564,8 @@ def handler(update, context):
         else:
             bot.send_message(chat_id=t_id, text=f'개찰결과가 없습니다.')
     elif user_text[:3] == "/계약": # 당일 계약 조회 (일반, 수의)
-        contract = json_parse(4, make_query(bid_nos = [], contract = ['1', '4']))
         bot.send_message(chat_id=t_id, text=f"< 검색조건 >\n계약방법: 일반경쟁, 수의계약\n검색어: 교복\n검색일: 오늘")
+        contract = json_parse(4, make_query(bid_nos = [], contract = ['1', '4']))
         if len(contract.index) > 0:
             t_day = datetime.today().strftime('%m-%d %H:%M:%S')
             num = str(len(contract.index))
@@ -575,12 +575,12 @@ def handler(update, context):
         else:
             bot.send_message(chat_id=t_id, text=f"> 계약결과가 없습니다.")
     elif user_text == "/체육복": # 체육복 조회
+        bot.send_message(chat_id=t_id, text=f"< 검색조건 >\n검색대상: 입찰공고, 개찰결과\n검색어: {words2}\n검색일: 오늘")
         urls1, urls2, _ = make_query(words=words2) # 입찰공고, 개찰결과
         gongo_seoul = json_parse2(1, urls1, area_filter1) # 서울 입찰공고
         gongo_joongboo = json_parse2(1, urls1, area_filter2) # 중부 입찰공고
         gaechal_seoul = json_parse2(2, urls2, area_filter1) # 서울 개찰결과
         gaechal_joongboo = json_parse2(2, urls2, area_filter2) # 중부 개찰결과
-        bot.send_message(chat_id=t_id, text=f"< 검색조건 >\n검색대상: 입찰공고, 개찰결과\n검색어: {words2}\n검색일: 오늘")
         nums = []
         if len(gongo_seoul.index) > 0: # 서울 입찰공고가 있을 경우
             nums.append(str(len(gongo_seoul.index))) # 총 건수
