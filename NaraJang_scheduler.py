@@ -49,12 +49,11 @@ sched = BlockingScheduler(timezone='Asia/Seoul')
 
 def make_query(bid_nos: list = [], contract: list = [], words = words) -> list:
     # 요청url 잘게 자르기
-    # url1 = 'http://apis.data.go.kr/1230000/BidPublicInfoService03'  # 02번이었음. 현재 입찰조회는 03번으로 변경됨.
-    url1 = 'http://apis.data.go.kr/1230000/BidPublicInfoService03'  # 입찰조회
+    url1 = 'http://apis.data.go.kr/1230000/BidPublicInfoService04'  # 입찰조회
     url2 = 'http://apis.data.go.kr/1230000/ScsbidInfoService'  # 낙찰조회
 
     # 오퍼레이션명(나라장터검색조건에 의한 입찰공고물품조회) 1.입찰공고
-    operation_name1 = '/getBidPblancListInfoThngPPSSrch'
+    operation_name1 = '/getBidPblancListInfoThngPPSSrch01'
     
     # 오퍼레이션명(나라장터 검색조건에 의한 개찰결과 물품 목록 조회) 2.개찰결과
     operation_name2 = '/getOpengResultListInfoThngPPSSrch'
