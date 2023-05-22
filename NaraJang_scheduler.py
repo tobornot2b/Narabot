@@ -21,14 +21,14 @@ serviceKey = config.API_Keys['data_go_kr_Key']
 token = config.TELEGRAM_API_Keys['token']
 bot = telegram.Bot(token)
 t_id = config.TELEGRAM_API_Keys['telegram_id']  # 채널
-interv_num = 30 # 시간 or 분 인터벌
+interv_num = 4 # 시간 or 분 인터벌
 interv_num2 = 4 # 시간 or 분 인터벌 (체육복)
 words = ['교복', '학생복', '생활복', '동복', '하복'] # 검색어 (검색어 조정 시 여기를 수정할 것)
 words2 = ['체육복', '후드', '생활복'] # 체육복 검색어
 area_filter1 = [ ['서울', '인천', '시흥', '부천', '부평'], [] ] # 체육복 지역 필터링 (서울상권)
 area_filter2 = [ ['경기', '강원'], ['시흥', '부천', '부평'] ] # 체육복 지역 필터링 (중부상권)
 
-info_message = f'''{interv_num}분 주기로 데이터를 가져옵니다.\n
+info_message = f'''{interv_num}시간 주기로 데이터를 가져옵니다.\n
 공고명 검색어 : {words}\n
 "/명령어"를 입력해서 기능을 확인하세요.'''
 
@@ -645,8 +645,8 @@ if __name__ == '__main__':
     sched.add_job(
         send_list,
         'interval',
-        # hours=interv_num,
-        minutes=interv_num,
+        hours=interv_num,
+        # minutes=interv_num,
         start_date=f'{today}',
         end_date=f'{today[:10]} 18:00:00'
     )
