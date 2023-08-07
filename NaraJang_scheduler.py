@@ -222,6 +222,7 @@ def json_parse(gbn: int, urls: list) -> pd.DataFrame:
 
                 # 열이름 한글변경
                 df.columns = ['공고번호', '차수', '공고종류', '지역', '학교', '입찰개시일']
+                df['입찰개시일'] = df['입찰개시일'].str[2:-6] + '시'
 
             elif gbn == 2:
                 # 열 값 바꾸기 (분할 후 병합)
@@ -405,6 +406,21 @@ def json_parse2(gbn: int, urls: list, filter: list) -> pd.DataFrame: # 체육복
         print(e)
 
 
+# 데이터 프레임을 50개 단위로 분할하는 함수
+def split_dataframe(df, chunk_size = 40) -> None:
+    chunk_list = []
+    while len(df) > chunk_size:
+        chunk_list.append(df[:chunk_size])
+        df = df[chunk_size:]
+    chunk_list.append(df)
+
+    # 데이터프레임 리스트를 받아서 리스트의 갯수를 표시하고 텔레그램으로 전송
+    for i, df in enumerate(chunk_list):
+        page = str(len(chunk_list)) # 총 건수
+        bot.sendMessage(chat_id=t_id, text=f'> 총 {page}페이지 중 {i+1}번째 페이지')
+        bot.send_message(chat_id=t_id, text=f'{tabulate(df, showindex="always")}')
+            
+
 def send_list():
     try:
         bot.sendMessage(chat_id=t_id, text=info_message)
@@ -415,7 +431,8 @@ def send_list():
             num = str(len(gongo.index)) # 총 건수
             # gongo = gongo.to_markdown() # 본문 표
             print(gongo)
-            bot.send_message(chat_id=t_id, text='{}'.format(gongo), parse_mode='Markdown')
+            split_dataframe(gongo)
+            # bot.send_message(chat_id=t_id, text='{}'.format(gongo), parse_mode='Markdown')
             # bot.send_message(chat_id=t_id, text='{}'.format(tabulate(gongo, tablefmt="plain", showindex="always")), parse_mode='Markdown')
             bot.sendMessage(chat_id=t_id, text=f'> 현재시각  {t_day} \n> 금일 입찰공고 총 {num} 건 입니다. (공고게시일 기준)')
         else:
@@ -433,7 +450,8 @@ def send_list():
             num = str(len(gaechal.index)) # 총 건수
             # gaechal = gaechal.to_markdown() # 본문 표
             print(gaechal)
-            bot.send_message(chat_id=t_id, text=f'{gaechal}', parse_mode='Markdown')
+            split_dataframe(gaechal)
+            # bot.send_message(chat_id=t_id, text=f'{gaechal}', parse_mode='Markdown')
             # bot.send_message(chat_id=t_id, text=f'{tabulate(gaechal, tablefmt="plain", showindex="always")}', parse_mode='Markdown')
             bot.sendMessage(chat_id=t_id, text=f'> 현재시각  {t_day} \n> 금일 개찰결과 총 {num} 건 입니다. (개찰일 조회기준)')
         else:
@@ -511,7 +529,6 @@ def send_list2(): # 체육복용
         print('체육복 개찰결과 조회중 알 수 없는 에러가 발생하였습니다.')
         print(e)
 
-
  
 # 사용자가 보낸 메세지를 읽어들이고, 답장을 보내줍니다.
 # 아래 함수만 입맛에 맞게 수정해주면 됩니다. 다른 것은 건들 필요없어요.
@@ -546,7 +563,7 @@ def handler(update, context):
             t_day = datetime.today().strftime('%m-%d %H:%M:%S') # 현재시각
             num = str(len(gongo.index)) # 총 건수
             print(gongo)
-            bot.send_message(chat_id=t_id, text=f'{tabulate(gongo, tablefmt="plain", showindex="always")}')
+            split_dataframe(gongo)
             bot.sendMessage(chat_id=t_id, text=f'> 현재시각  {t_day} \n> 입찰공고 총 {num} 건 입니다.')
         else:
             bot.send_message(chat_id=t_id, text=f'입찰공고가 없습니다.')
@@ -558,7 +575,7 @@ def handler(update, context):
             t_day = datetime.today().strftime('%m-%d %H:%M:%S') # 현재시각
             num = str(len(gaechal.index)) # 총 건수
             print(gaechal)
-            bot.send_message(chat_id=t_id, text=f'{tabulate(gaechal, tablefmt="plain", showindex="always")}')
+            split_dataframe(gaechal)
             bot.sendMessage(chat_id=t_id, text=f'> 현재시각  {t_day} \n> 개찰결과 총 {num} 건 입니다.')
         else:
             bot.send_message(chat_id=t_id, text=f'개찰결과가 없습니다.')
