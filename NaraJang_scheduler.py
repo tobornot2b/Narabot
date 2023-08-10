@@ -406,7 +406,7 @@ def json_parse2(gbn: int, urls: list, filter: list) -> pd.DataFrame: # 체육복
         print(e)
 
 
-# 데이터 프레임을 50개 단위로 분할하는 함수
+# 데이터 프레임을 40개 단위로 분할하는 함수
 def split_dataframe(df, chunk_size = 40) -> None:
     chunk_list = []
     while len(df) > chunk_size:
@@ -417,8 +417,17 @@ def split_dataframe(df, chunk_size = 40) -> None:
     # 데이터프레임 리스트를 받아서 리스트의 갯수를 표시하고 텔레그램으로 전송
     for i, df in enumerate(chunk_list):
         page = str(len(chunk_list)) # 총 건수
-        bot.sendMessage(chat_id=t_id, text=f'> 총 {page}페이지 중 {i+1}번째 페이지')
-        bot.send_message(chat_id=t_id, text=f'{tabulate(df, showindex="always")}')
+        # bot.sendMessage(chat_id=t_id, text=f'> 총 {page}페이지 중 {i+1}번째 페이지')
+        # bot.send_message(chat_id=t_id, text=f'{tabulate(df, showindex="always")}')
+        
+        df_to_str: str = df.to_string()
+        df_to_str = \
+            f'> ({i+1} / {page} 페이지)\n' +\
+            '='*45 + '\n' +\
+            df_to_str + '\n' +\
+            '='*45
+        print(df_to_str)
+        bot.send_message(chat_id=t_id, text=df_to_str)
             
 
 def send_list():
